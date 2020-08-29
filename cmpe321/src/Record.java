@@ -2,42 +2,34 @@ import java.util.*;
 import java.io.*;
 
 public class Record {
-    static int lastID = 0;
+    static int end_ID = 0;
     static Scanner console = new Scanner(System.in);
 
-    int recordID;
+    int ID;
     boolean isEmpty;
     String[] fields;
     Type type;
 
     public Record(Type type, String[] fields) {
-        lastID++;
-        this.recordID = lastID;
+        end_ID++;
+        this.ID = end_ID;
         this.isEmpty = false;
         this.type = type;
         this.fields = fields.clone();
     }
 
-    public Record(Type type, String typeStr) {
-        String[] parts = typeStr.split(FileManager.FIELD_DELIMETER);
-        this.recordID = Integer.valueOf(parts[0]);
+    public Record(Type type, String str_type) {
+        String[] parts = str_type.split(Controller.FIELD_DELIMETER);
+        this.ID = Integer.valueOf(parts[0]);
         this.isEmpty = "1".equals(parts[1]);
         this.type = type;
-        this.fields = new String[type.getNOfFields()];
+        this.fields = new String[type.num_of_fields];
         for (int i = 2; i < parts.length; i++) {
             this.fields[i-2] = parts[i];
         }
     }
 
-    public boolean getIsEmpty(){
-        return this.isEmpty;
-    }
-    public void setIsEmpty(boolean isEmpty){
-        this.isEmpty = isEmpty;
-    }
-    public String[] getFields(){
-        return this.fields;
-    }
+
 
     public static void create(File file) {
         ArrayList<String> type_names = new ArrayList<String>();
@@ -66,17 +58,17 @@ public class Record {
             Type type = types.get(index);
 
 
-            System.out.println("You are creating record for type " + type.getName());
-            String[] fields = new String[type.getNOfFields()];
-            for (int i = 0; i < type.getNOfFields(); i++) {
-                System.out.println("Enter data for " + type.getFields()[i]);
+            System.out.println("You are creating record for type " + type.name);
+            String[] fields = new String[type.num_of_fields];
+            for (int i = 0; i < type.num_of_fields; i++) {
+                System.out.println("Enter data for " + type.fields[i]);
                 fields[i] = console.next();
             }
             Record record = new Record(type, fields);
 
-            String[] pages = FileManager.getPages(file);
-            Page discDir = new Page(pages[0]);
-            int address = discDir.getAddress(type.getName() + ".txt");
+            String[] pages = Controller.read_pages(file);
+            Page disc_page = new Page(pages[0]);
+            int address = disc_page.getAddress(type.name + ".txt");
 
             Page rPage = new Page(pages[address]);
             while(rPage.pageHeader.pointer != 0) {
@@ -84,31 +76,30 @@ public class Record {
                 rPage = new Page(pages[address]);
             }
 
-            if (rPage.pageHeader.nOfRecords == FileManager.RECORD_PER_PAGE) {
-                int freeAddress = discDir.getFreeAddress();
-                pages[0] = discDir.toString();
-                FileManager.writePages(file, pages);
+            if (rPage.pageHeader.size == Controller.RECORD_PER_PAGE) {
+                int freeAddress = disc_page.getFreeAddress();
+                pages[0] = disc_page.toString();
+                Controller.write_pages(file, pages);
 
                 rPage.pageHeader.pointer = freeAddress;
                 pages[address] = rPage.toString();
-                FileManager.writePages(file, pages);
+                Controller.write_pages(file, pages);
 
 
                 rPage = new Page(pages[freeAddress]);
                 rPage.pageHeader.isEmpty = false;
-                rPage.pageHeader.nOfRecords ++;
+                rPage.pageHeader.size++;
                 rPage.records.add(record.toString());
                 pages[freeAddress] = rPage.toString();
-                FileManager.writePages(file, pages);
+                Controller.write_pages(file, pages);
             } else {
                 rPage.records.add(record.toString());
-                rPage.pageHeader.nOfRecords ++;
+                rPage.pageHeader.size++;
                 pages[address] = rPage.toString();
-                FileManager.writePages(file, pages);
+                Controller.write_pages(file, pages);
             }
-            System.out.println("Record for type \"" + type.getName() + "\" is added to database successfully.");
+            System.out.println("Record is added successfully.");
         } catch (IOException e) {
-            System.out.println("Couldn't read line from text");
             System.exit(0);
         }
     }
@@ -134,7 +125,7 @@ public class Record {
         }
         Type type = types.get(index);
 
-        System.out.println("Records for type" + type.getName());
+        System.out.println("Records for type" + type.name);
 
         ArrayList<Record> records = getRecords(file, type);
         ArrayList<String> record_keys =  new ArrayList<String>();
@@ -142,7 +133,7 @@ public class Record {
             Record record = records.get(i);
             record_keys.add(records.get(i).fields[0]);
             ArrayList<String> parts = new ArrayList<>();
-            for (int j = 0; j < record.type.getNOfFields(); j++) {
+            for (int j = 0; j < record.type.num_of_fields; j++) {
                 parts.add(record.type.fields[j] + ": " + record.fields[j]);
             }
             System.out.println("\t[" + (i+1) + "] => " + String.join(" / ", parts));
@@ -157,9 +148,9 @@ public class Record {
         index = record_keys.indexOf(key_target_record);
         Record record = records.get(index);
         System.out.println("Deleting: " + record.toString());
-        String[] pages = FileManager.getPages(file);
+        String[] pages = Controller.read_pages(file);
         Page disc_page = new Page(pages[0]);
-        int address = disc_page.getAddress(type.getName() + ".txt");
+        int address = disc_page.getAddress(type.name + ".txt");
         Page record_page = new Page(pages[address]);
 
         int position = -1;
@@ -179,11 +170,11 @@ public class Record {
         if (position == -1) {
             System.out.println("Couldn't find record");
         } else {
-            record.setIsEmpty(true);
+            record.isEmpty = true;
             record_page.records.set(position, record.toString());
-            record_page.pageHeader.nOfRecords--;
+            record_page.pageHeader.size--;
             pages[address] = record_page.toString();
-            FileManager.writePages(file, pages);
+            Controller.write_pages(file, pages);
             System.out.println();
             System.out.println("Record is deleted from database successfully.");
         }
@@ -210,8 +201,8 @@ public class Record {
         int index = type_names.indexOf(target_type);
         Type type = types.get(index);
 
-        System.out.println("Primary key for type " + type.getName() + " is " + type.getFields()[0]);
-        System.out.println("Enter " + type.getFields()[0] + " for retrieve record");
+        System.out.println("Primary key for type " + type.name + " is " + type.fields[0]);
+        System.out.println("Enter " + type.fields[0] + " for retrieve record");
         String pk = console.next();
 
         ArrayList<Record> records = getRecords(file, type);
@@ -224,9 +215,9 @@ public class Record {
         }
         if (found != null) {
             System.out.println("The record is found");
-            System.out.println("\t[" + found.recordID + "] Type " + found.type.getName());
+            System.out.println("\t[" + found.ID + "] Type " + found.type.name);
             ArrayList<String> parts = new ArrayList<>();
-            for (int j = 0; j < found.type.getNOfFields(); j++) {
+            for (int j = 0; j < found.type.num_of_fields; j++) {
                 parts.add(found.type.fields[j] + ": " + found.fields[j]);
             }
             System.out.println("\t\t" + String.join(" / ", parts));
@@ -240,7 +231,7 @@ public class Record {
         System.out.println();
         ArrayList<Type> types = Type.getTypeList(file);
         for (int i = 0; i < types.size(); i++) {
-            System.out.println("\t[" + (i+1) + "] " + types.get(i).name);
+            System.out.println("\t\t " + types.get(i).name);
             System.out.println("\t\t Number of Fields: " + types.get(i).num_of_fields);
             System.out.println("\t\t Fields: " + String.join(" / ", types.get(i).fields));
             type_names.add(types.get(i).name);
@@ -256,15 +247,15 @@ public class Record {
         int index = type_names.indexOf(target_type);
         Type type = types.get(index);
 
-        System.out.println("Records for type " + type.getName());
+        System.out.println("Records for type " + type.name);
         ArrayList<Record> records = Record.getRecords(file, type);
         for (int i = 0; i < records.size(); i++) {
             Record record = records.get(i);
             ArrayList<String> parts = new ArrayList<>();
-            for (int j = 0; j < record.type.getNOfFields(); j++) {
+            for (int j = 0; j < record.type.num_of_fields; j++) {
                 parts.add(record.type.fields[j] + ": " + record.fields[j]);
             }
-            System.out.println("\t[" + record.recordID + "] => " + String.join(" / ", parts));
+            System.out.println("\t\t" + String.join(" / ", parts));
 
 
 
@@ -275,13 +266,13 @@ public class Record {
     public static ArrayList<Record> getRecords(File file, Type type) {
         ArrayList<Record> records = new ArrayList<>();
         try {
-            String[] pages = FileManager.getPages(file);
+            String[] pages = Controller.read_pages(file);
             Page discDir = new Page(pages[0]);
-            int address = discDir.getAddress(type.getName() + ".txt");
+            int address = discDir.getAddress(type.name + ".txt");
             Page rPage = new Page(pages[address]);
             for ( String str :  rPage.records) {
                 Record record = new Record(type, str);
-                if (!record.getIsEmpty()) {
+                if (!record.isEmpty) {
                     records.add(record);
                 }
             }
@@ -290,7 +281,7 @@ public class Record {
                 rPage = new Page(pages[rPage.pageHeader.pointer]);
                 for ( String str :  rPage.records) {
                     Record record = new Record(type, str);
-                    if (!record.getIsEmpty()) {
+                    if (!record.isEmpty) {
                         records.add(record);
                     }
                 }
@@ -306,12 +297,12 @@ public class Record {
     @Override
     public String toString() {
         ArrayList<String> parts = new ArrayList<>();
-        parts.add(Integer.toString(recordID));
+        parts.add(Integer.toString(ID));
         if (isEmpty)
             parts.add("1");
         else
             parts.add("0");
         parts.addAll(Arrays.asList(fields));
-        return String.join(FileManager.FIELD_DELIMETER, parts);
+        return String.join(Controller.FIELD_DELIMETER, parts);
     }
 }

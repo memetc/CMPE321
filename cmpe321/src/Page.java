@@ -49,10 +49,6 @@ public class Page {
         return 0;
     }
 
-    public int getSysCatAddress() {
-        return this.getAddress(Controller.SYS_CAT_FILE);
-    }
-
     public int getFreeAddress() {
         int freeAddress = this.getAddress(Controller.FREE_SPACE);
         this.setFreeAddress(freeAddress + 1);
@@ -84,14 +80,14 @@ class PageHeader {
 
     int pageID;
     int pointer;
-    int nOfRecords;
+    int size;
     boolean isEmpty;
 
 
-    public PageHeader(int pageID, int pointer, int nOfRecords, boolean isEmpty) {
+    public PageHeader(int pageID, int pointer, int size, boolean isEmpty) {
         this.pageID = pageID;
         this.pointer = pointer;
-        this.nOfRecords = nOfRecords;
+        this.size = size;
         this.isEmpty = isEmpty;
     }
 
@@ -103,7 +99,7 @@ class PageHeader {
         } else {
             this.pointer = Integer.valueOf(parts[1]);
         }
-        this.nOfRecords = Integer.valueOf(parts[2]);
+        this.size = Integer.valueOf(parts[2]);
         this.isEmpty = "1".equals(parts[3]);
     }
 
@@ -112,7 +108,7 @@ class PageHeader {
         String[] fields = {
                 Integer.toString(pageID),
                 pointer == 0 ? "" : Integer.toString(pointer),
-                Integer.toString(nOfRecords),
+                Integer.toString(size),
                 isEmpty == false ? "0" : "1"};
         return String.join(Controller.FIELD_DELIMETER, fields);
     }

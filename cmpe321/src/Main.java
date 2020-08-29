@@ -7,7 +7,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         System.out.println("Welcome!");
-        File db = new File(FileManager.DB_FILE);
+        File db = new File(Controller.DB_FILE);
         if (db.exists()) {
             System.out.println("You have an old data file");
             System.out.println("Enter 'o' to overwrite");
@@ -48,23 +48,23 @@ public class Main {
 
 
     public static void init() {
-        dictionary = new File(FileManager.DB_FILE);
+        dictionary = new File(Controller.DB_FILE);
         try ( PrintWriter out = new PrintWriter(dictionary)){
             // First page always is Disc Directory file
             Page discDirectory = new Page();
-            discDirectory.addFile(FileManager.FREE_SPACE, 2);
-            discDirectory.addFile(FileManager.SYS_CAT_FILE, 1);
+            discDirectory.addFile(Controller.FREE_SPACE, 2);
+            discDirectory.addFile(Controller.SYS_CAT_FILE, 1);
             out.print(discDirectory);
-            int totalPageCount = FileManager.PAGE_PER_FILE;
+            int totalPageCount = Controller.PAGE_PER_FILE;
             // Add empty page with ID
             for(int i = 1; i < totalPageCount; i++) {
-                out.print(FileManager.PAGE_DELIMETER);
+                out.print(Controller.PAGE_DELIMETER);
                 out.print(i); // Page ID
-                out.print(FileManager.FIELD_DELIMETER);
+                out.print(Controller.FIELD_DELIMETER);
                 out.print(""); // Pointer to next page
-                out.print(FileManager.FIELD_DELIMETER);
+                out.print(Controller.FIELD_DELIMETER);
                 out.print("0"); // Number of records
-                out.print(FileManager.FIELD_DELIMETER);
+                out.print(Controller.FIELD_DELIMETER);
                 if (i == 1) {
                     out.print("0"); // Sys is full
 
@@ -75,7 +75,7 @@ public class Main {
         } catch (IOException e) {
             System.out.println("exception");
         }
-        System.out.println(FileManager.DB_FILE + " is created.");
+        System.out.println(Controller.DB_FILE + " is created.");
     }
 
 

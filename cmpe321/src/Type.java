@@ -18,7 +18,7 @@ public class Type {
     }
 
     public Type(String typeStr) {
-        String[] parts = typeStr.split(FileManager.FIELD_DELIMETER);
+        String[] parts = typeStr.split(Controller.FIELD_DELIMETER);
         this.name = parts[0];
         this.isEmpty = "1".equals(parts[1]);
         this.num_of_fields = Integer.valueOf(parts[2]);
@@ -28,32 +28,13 @@ public class Type {
         }
     }
 
-    public String getName(){
-        return this.name;
-    }
-
-    public int getNOfFields(){
-        return this.num_of_fields;
-    }
-
-    public String[] getFields(){
-        return this.fields;
-    }
-
-    public boolean getIsEmpty(){
-        return this.isEmpty;
-    }
-    public void setIsEmpty(boolean isEmpty){
-        this.isEmpty = isEmpty;
-    }
-
     public static void create(File file) {
         try {
             System.out.println("Enter type name");
             String typeName = console.next();
 
 
-            System.out.println("Enter the number of fields up to " + FileManager.NUM_OF_FIELDS);
+            System.out.println("Enter the number of fields up to " + Controller.NUM_OF_FIELDS);
             while (!console.hasNextInt()) {
                 System.out.println("That's not a number!");
                 console.next();
@@ -67,46 +48,47 @@ public class Type {
             }
             Type type = new Type(typeName, nOfFields, fields);
 
-            String[] pages = FileManager.getPages(file);
+            String[] pages = Controller.read_pages(file);
 
-            Page discDir = new Page(pages[0]);
-            int sysAddress = discDir.getSysCatAddress();
-            int saveAddress = discDir.addFile(typeName + ".txt");
-            pages[0] = discDir.toString();
-            FileManager.writePages(file, pages);
+            Page disc_page = new Page(pages[0]);
+            int system_address = disc_page.getAddress(Controller.SYS_CAT_FILE);
+            int save_address = disc_page.addFile(typeName + ".txt");
+            pages[0] = disc_page.toString();
+            Controller.write_pages(file, pages);
 
-            Page rPage = new Page(pages[saveAddress]);
-            rPage.pageHeader.isEmpty = false;
-            pages[saveAddress] = rPage.toString();
-            FileManager.writePages(file, pages);
+            Page record_page = new Page(pages[save_address]);
+            record_page.pageHeader.isEmpty = false;
+            pages[save_address] = record_page.toString();
+            Controller.write_pages(file, pages);
 
-            Page sysPage = new Page(pages[sysAddress]);
-            while(sysPage.pageHeader.pointer != 0) {
-                sysAddress = sysPage.pageHeader.pointer;
-                sysPage = new Page(pages[sysAddress]);
+            Page system_page = new Page(pages[system_address]);
+            while(system_page.pageHeader.pointer != 0) {
+                system_address = system_page.pageHeader.pointer;
+                system_page = new Page(pages[system_address]);
             }
 
-            if (sysPage.pageHeader.nOfRecords == FileManager.TYPE_PER_PAGE) {
-                int freeAddress = discDir.getFreeAddress();
-                pages[0] = discDir.toString();
-                FileManager.writePages(file, pages);
+            if (system_page.pageHeader.size == Controller.TYPE_PER_PAGE) {
+                int freeAddress = disc_page.getFreeAddress();
+                pages[0] = disc_page.toString();
+                Controller.write_pages(file, pages);
 
-                sysPage.pageHeader.pointer = freeAddress;
-                pages[sysAddress] = sysPage.toString();
-                FileManager.writePages(file, pages);
+                system_page.pageHeader.pointer = freeAddress;
+                pages[system_address] = system_page.toString();
+                Controller.write_pages(file, pages);
 
 
-                sysPage = new Page(pages[freeAddress]);
-                sysPage.pageHeader.isEmpty = false;
-                sysPage.pageHeader.nOfRecords ++;
-                sysPage.records.add(type.toString());
-                pages[freeAddress] = sysPage.toString();
-                FileManager.writePages(file, pages);
-            } else {
-                sysPage.records.add(type.toString());
-                sysPage.pageHeader.nOfRecords ++;
-                pages[sysAddress] = sysPage.toString();
-                FileManager.writePages(file, pages);
+                system_page = new Page(pages[freeAddress]);
+                system_page.pageHeader.isEmpty = false;
+                system_page.pageHeader.size++;
+                system_page.records.add(type.toString());
+                pages[freeAddress] = system_page.toString();
+                Controller.write_pages(file, pages);
+            }
+            else {
+                system_page.records.add(type.toString());
+                system_page.pageHeader.size++;
+                pages[system_address] = system_page.toString();
+                Controller.write_pages(file, pages);
             }
             System.out.println();
             System.out.println("Type \"" + typeName + "\" is added to database successfully.");
@@ -131,40 +113,40 @@ public class Type {
             int typeID = console.nextInt();
             Type type = types.get(typeID - 1);
 
-            String[] pages = FileManager.getPages(file);
-            Page discDir = new Page(pages[0]);
-            int sysAddress = discDir.getSysCatAddress();
-            int removeAddress = discDir.removeFile(type.name + ".txt");
-            pages[0] = discDir.toString();
-            FileManager.writePages(file, pages);
+            String[] pages = Controller.read_pages(file);
+            Page disc_page = new Page(pages[0]);
+            int sysAddress = disc_page.getAddress(Controller.SYS_CAT_FILE);
+            int removeAddress = disc_page.removeFile(type.name + ".txt");
+            pages[0] = disc_page.toString();
+            Controller.write_pages(file, pages);
 
-            Page rPage = new Page(pages[removeAddress]);
-            rPage.pageHeader.isEmpty = true;
-            rPage.pageHeader.nOfRecords = 0;
-            int nextPointer = rPage.pageHeader.pointer;
-            rPage.pageHeader.pointer = 0;
-            rPage.records.clear();
-            pages[removeAddress] = rPage.toString();
-            FileManager.writePages(file, pages);
+            Page record_page = new Page(pages[removeAddress]);
+            record_page.pageHeader.isEmpty = true;
+            record_page.pageHeader.size = 0;
+            int next = record_page.pageHeader.pointer;
+            record_page.pageHeader.pointer = 0;
+            record_page.records.clear();
+            pages[removeAddress] = record_page.toString();
+            Controller.write_pages(file, pages);
 
-            while(nextPointer != 0) {
-                removeAddress = nextPointer;
-                rPage = new Page(pages[removeAddress]);
-                rPage.pageHeader.isEmpty = true;
-                rPage.pageHeader.nOfRecords = 0;
-                nextPointer = rPage.pageHeader.pointer;
-                rPage.pageHeader.pointer = 0;
-                rPage.records.clear();
-                pages[removeAddress] = rPage.toString();
-                FileManager.writePages(file, pages);
+            while(next != 0) {
+                removeAddress = next;
+                record_page = new Page(pages[removeAddress]);
+                record_page.pageHeader.isEmpty = true;
+                record_page.pageHeader.size = 0;
+                next = record_page.pageHeader.pointer;
+                record_page.pageHeader.pointer = 0;
+                record_page.records.clear();
+                pages[removeAddress] = record_page.toString();
+                Controller.write_pages(file, pages);
             }
 
             Page sysPage = new Page(pages[sysAddress]);
-            int loc = -1;
-            while(loc == -1) {
+            int position = -1;
+            while(position == -1) {
                 for (int i = 0; i < sysPage.records.size(); i++) {
                     if (sysPage.records.get(i).equalsIgnoreCase(type.toString())) {
-                        loc = i;
+                        position = i;
                         break;
                     }
                 }
@@ -174,14 +156,14 @@ public class Type {
                 sysAddress = sysPage.pageHeader.pointer;
                 sysPage = new Page(pages[sysAddress]);
             }
-            if (loc == -1) {
+            if (position == -1) {
                 System.out.println("Couldn't find type");
             } else {
-                type.setIsEmpty(true);
-                sysPage.records.set(loc, type.toString());
-                sysPage.pageHeader.nOfRecords --;
+                type.isEmpty = true;
+                sysPage.records.set(position, type.toString());
+                sysPage.pageHeader.size--;
                 pages[sysAddress] = sysPage.toString();
-                FileManager.writePages(file, pages);
+                Controller.write_pages(file, pages);
                 System.out.println();
                 System.out.println("Type \"" + type.name + "\" is deleted from database successfully.");
             }
@@ -205,14 +187,14 @@ public class Type {
     public static ArrayList<Type> getTypeList(File file) {
         ArrayList<Type> types = new ArrayList<>();
         try {
-            String[] pages = FileManager.getPages(file);
-            Page discDir = new Page(pages[0]);
-            int sysAddress = discDir.getSysCatAddress();
+            String[] pages = Controller.read_pages(file);
+            Page disc_page = new Page(pages[0]);
+            int sysAddress = disc_page.getAddress(Controller.SYS_CAT_FILE);
 
             Page sysPage = new Page(pages[sysAddress]);
             for ( String str :  sysPage.records) {
                 Type type = new Type(str);
-                if (!type.getIsEmpty()) {
+                if (!type.isEmpty) {
                     types.add(type);
                 }
             }
@@ -220,7 +202,7 @@ public class Type {
                 sysPage = new Page(pages[sysPage.pageHeader.pointer]);
                 for ( String str :  sysPage.records) {
                     Type type = new Type(str);
-                    if (!type.getIsEmpty()) {
+                    if (!type.isEmpty) {
                         types.add(type);
                     }
                 }
@@ -242,6 +224,6 @@ public class Type {
             parts.add("0");
         parts.add(Integer.toString(num_of_fields));
         parts.addAll(Arrays.asList(fields));
-        return String.join(FileManager.FIELD_DELIMETER, parts);
+        return String.join(Controller.FIELD_DELIMETER, parts);
     }
 }
